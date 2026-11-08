@@ -14,16 +14,17 @@ _Add a photo of the hardware or a screenshot of the dashboard here._
 
 ## How it works
 
-1. The ESP32 starts its own Wi-Fi access point (`ESP32_Battery`) - no router needed.
+1. The ESP32 starts its own Wi-Fi access point - no router needed. The hotspot name and password come from a local `credentials.h` file that is git-ignored, so real credentials never end up in the repo.
 2. `esp32batterymgmtcode.ino` samples the ADC, converts to pack voltage through the divider ratio, and smooths it with a 10-reading moving average.
 3. A web dashboard served by the ESP32 (port 80) shows a live battery bar, percentage and voltage, and motor controls.
 4. Endpoints: `/` (dashboard), `/data` (JSON readings), `/motor` (start/stop), `/speed` (set motor speed).
 
 ## Setup
 
-1. Wire the divider to GPIO 35 and the L298N inputs to GPIO 26/27.
-2. Flash the sketch with the Arduino IDE or PlatformIO.
-3. Connect your phone/laptop to the `ESP32_Battery` hotspot (default password `12345678` - change it in the sketch) and open the printed IP (usually `192.168.4.1`) in a browser.
+1. Copy `credentials.example.h` to `credentials.h` and set your own hotspot name and a strong password (8+ characters). `credentials.h` is git-ignored. Anyone who can join the hotspot can drive the motor, so do not leave a guessable password on it.
+2. Wire the divider to GPIO 35 and the L298N inputs to GPIO 26/27.
+3. Flash the sketch with the Arduino IDE or PlatformIO.
+4. Connect your phone/laptop to the hotspot you configured and open the printed IP (usually `192.168.4.1`) in a browser.
 
 ## What this demonstrates
 
