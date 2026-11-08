@@ -1,9 +1,11 @@
 #include <WiFi.h>
 #include <WebServer.h>
 
-// Wi-Fi AP details
-const char* ssid = "ESP32_Battery";
-const char* password = "12345678";
+// Wi-Fi AP credentials live in credentials.h (git-ignored).
+// Copy credentials.example.h to credentials.h and set your own values.
+#include "credentials.h"
+const char* ssid = WIFI_SSID;
+const char* password = WIFI_PASSWORD;
 
 WebServer server(80);
 
