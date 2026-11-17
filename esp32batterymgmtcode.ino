@@ -7,6 +7,38 @@
 const char* ssid = WIFI_SSID;
 const char* password = WIFI_PASSWORD;
 
+// Moving-average smoother for the battery voltage ADC readings.
+// On the very first sample the whole window is seeded with that reading,
+// so the first reported value is real instead of an average dragged toward zero.
+struct VoltageSmoother {
+  static const int kWindow = 10;
+  float readings[kWindow];
+  float total;
+  int index;
+  bool primed;
+
+  VoltageSmoother() : total(0.0f), index(0), primed(false) {
+    for (int i = 0; i < kWindow; i++) readings[i] = 0.0f;
+  }
+
+  // Feed one raw ADC sample (0..4095 at a 3.3 V reference) and get the
+  // smoothed battery voltage back.
+  float add(int raw, float dividerRatio) {
+    float voltage = (float)raw * 3.3f / 4095.0f * dividerRatio;
+    if (!primed) {
+      for (int i = 0; i < kWindow; i++) readings[i] = voltage;
+      total = voltage * kWindow;
+      primed = true;
+    } else {
+      total -= readings[index];
+      readings[index] = voltage;
+      total += voltage;
+      index = (index + 1) % kWindow;
+    }
+    return total / kWindow;
+  }
+};
+
 WebServer server(80);
 
 // Battery config
@@ -16,11 +48,7 @@ const float maxVolt = 4.2;
 const float minVolt = 3.0;
 const float maxDistance = 200.0;
 
-const int numReadings = 10;
-float voltageReadings[numReadings];
-int readIndex = 0;
-float totalVoltage = 0;
-float averageVoltage = 0;
+VoltageSmoother voltageSmoother;
 
 // Motor (L298N)
 const int IN1 = 26;
@@ -36,10 +64,6 @@ void setup() {
   pinMode(IN2, OUTPUT);
   stopMotor();
 
-  for (int i = 0; i < numReadings; i++) {
-    voltageReadings[i] = 0.0;
-  }
-
   server.on("/", handleRoot);
   server.on("/data", handleData);
   server.on("/motor", handleMotor);
@@ -52,14 +76,7 @@ void loop() {
 }
 
 float getSmoothedVoltage() {
-  int raw = analogRead(sensorPin);
-  float voltage = (float)raw * 3.3 / 4095.0 * dividerRatio;
-  totalVoltage -= voltageReadings[readIndex];
-  voltageReadings[readIndex] = voltage;
-  totalVoltage += voltage;
-  readIndex = (readIndex + 1) % numReadings;
-  averageVoltage = totalVoltage / numReadings;
-  return averageVoltage;
+  return voltageSmoother.add(analogRead(sensorPin), dividerRatio);
 }
 
 void handleRoot() {
