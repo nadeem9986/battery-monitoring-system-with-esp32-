@@ -55,6 +55,11 @@ const int IN1 = 26;
 const int IN2 = 27;
 int currentSpeed = 170; // medium by default
 
+// Which direction the motor is driving right now. Tracked so a speed change
+// can re-apply the PWM immediately instead of waiting for the next /motor call.
+enum MotorDir { MOTOR_STOPPED, MOTOR_FORWARD, MOTOR_REVERSE };
+MotorDir currentDir = MOTOR_STOPPED;
+
 void setup() {
   Serial.begin(115200);
   WiFi.softAP(ssid, password);
@@ -162,27 +167,35 @@ void handleMotor() {
   }
   String dir = server.arg("dir");
   if (dir == "forward") {
-    analogWrite(IN1, currentSpeed);
-    analogWrite(IN2, 0);
+    currentDir = MOTOR_FORWARD;
   } else if (dir == "reverse") {
-    analogWrite(IN1, 0);
-    analogWrite(IN2, currentSpeed);
+    currentDir = MOTOR_REVERSE;
   } else {
-    stopMotor();
+    currentDir = MOTOR_STOPPED;
   }
+  applyMotorOutput();
   server.send(200, "text/plain", "OK");
 }
 
 void handleSpeed() {
   if (server.hasArg("val")) {
     currentSpeed = constrain(server.arg("val").toInt(), 0, 255);
+    applyMotorOutput();
     server.send(200, "text/plain", "Speed set");
   } else {
     server.send(400, "text/plain", "Missing val");
   }
 }
 
+// Single place that writes the motor pins: forward PWMs IN1, reverse PWMs IN2,
+// stop grounds both. handleSpeed also calls this so changing speed while the
+// motor runs takes effect at once, not only on the next direction command.
+void applyMotorOutput() {
+  analogWrite(IN1, currentDir == MOTOR_FORWARD ? currentSpeed : 0);
+  analogWrite(IN2, currentDir == MOTOR_REVERSE ? currentSpeed : 0);
+}
+
 void stopMotor() {
-  analogWrite(IN1, 0);
-  analogWrite(IN2, 0);
+  currentDir = MOTOR_STOPPED;
+  applyMotorOutput();
 }
